@@ -1,11 +1,16 @@
 package com.example.videoplayerpoc.ui
 
+import android.content.Intent
+import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
+import android.util.Log
 import android.widget.MediaController
 import android.widget.VideoView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,7 +62,9 @@ class MainActivity : ComponentActivity() {
 
                         Button(
                             onClick = {
-
+                                val intent = Intent(Intent.ACTION_PICK, null)
+                                intent.type = "video/*"
+                                resultLauncher.launch(intent)
                             }) {
                             Text(text = "Upload New Video")
                         }
@@ -65,5 +72,39 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private val resultLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val data: Intent? = result.data
+
+                // For null safety, make sure data is not null
+                if (data == null) {
+                    Log.d("TAG", "Data returned is null")
+                    return@registerForActivityResult
+                }
+
+                val videoUri: Uri? = data.data
+                videoUri?.let {
+                    val videoPath = parsePath(videoUri)
+                    startActivity(ExoPlayerActivity.create(this@MainActivity, uriPath = videoPath))
+                }
+            }
+        }
+
+    private fun parsePath(uri: Uri): String? {
+        val projection = arrayOf(MediaStore.Video.Media.DATA)
+        val cursor: Cursor? = this
+            .contentResolver.query(uri, projection, null, null, null)
+        return if (cursor != null) {
+            val columnIndex: Int = cursor
+                .getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+            cursor.moveToFirst()
+            val path = cursor.getString(columnIndex)
+            cursor.close() // Make sure you close cursor after use
+
+            path
+        } else null
     }
 }

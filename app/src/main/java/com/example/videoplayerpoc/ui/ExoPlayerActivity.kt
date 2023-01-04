@@ -56,6 +56,9 @@ class ExoPlayerActivity : ComponentActivity() {
                 var lifeCycle by remember {
                     mutableStateOf(Lifecycle.Event.ON_CREATE)
                 }
+
+                var isAddNewVideoButtonVisible  by remember { mutableStateOf(true) }
+
                 val lifecycleOwner = LocalLifecycleOwner.current
                 DisposableEffect(lifecycleOwner) {
                     val observer = LifecycleEventObserver { _, event ->
@@ -69,7 +72,13 @@ class ExoPlayerActivity : ComponentActivity() {
                 }
 
                 if (videoItems.isEmpty()) {
-                    viewModel.addVideoUri(getVideoUri(0))
+                    val initialVideoUri = intent.getStringExtra(EXTRA_VIDEO_PATH)?.let {
+                        isAddNewVideoButtonVisible = false
+                        Uri.parse(it)
+                    } ?: run {
+                        getVideoUri(0)
+                    }
+                    viewModel.addVideoUri(initialVideoUri)
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -96,19 +105,21 @@ class ExoPlayerActivity : ComponentActivity() {
                             .aspectRatio(16 / 9f)
                             .padding(vertical = 16.dp)
                     )
-                    Button(
-                        onClick = {
-                            if (urisLastIndex != videoItems.size) {
-                                viewModel.addVideoUri(getVideoUri(videoItems.size))
-                            }
-                        },
-                        modifier = Modifier.clip(CircleShape)
-                    ) {
-                        Text(
-                            text = VIDEO_DESC,
-                            fontSize = 17.sp,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
+                    if(isAddNewVideoButtonVisible) {
+                        Button(
+                            onClick = {
+                                if (urisLastIndex != videoItems.size) {
+                                    viewModel.addVideoUri(getVideoUri(videoItems.size))
+                                }
+                            },
+                            modifier = Modifier.clip(CircleShape)
+                        ) {
+                            Text(
+                                text = VIDEO_DESC,
+                                fontSize = 17.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -120,10 +131,13 @@ class ExoPlayerActivity : ComponentActivity() {
     }
 
     companion object {
-        const val VIDEO_DESC = "Add a new Video"
+        private const val VIDEO_DESC = "Add a new Video"
+        private const val EXTRA_VIDEO_PATH = "Extra URI"
 
-        fun create(context: Context): Intent {
-            return Intent(context, ExoPlayerActivity::class.java)
+        fun create(context: Context, uriPath: String? = null): Intent {
+            val intent = Intent(context, ExoPlayerActivity::class.java)
+            intent.putExtra(EXTRA_VIDEO_PATH, uriPath)
+            return intent
         }
     }
 }
