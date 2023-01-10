@@ -20,11 +20,18 @@ import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.lifecycleScope
 import com.example.videoplayerpoc.ui.theme.VideoPlayerComposeTheme
+import com.example.videoplayerpoc.util.FileManagerUtil
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var fileManagerUtil: FileManagerUtil
 
     private val videoUri: Uri =
         Uri.parse("https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4")
@@ -68,6 +75,24 @@ class MainActivity : ComponentActivity() {
                             }) {
                             Text(text = "Upload New Video")
                         }
+
+                        Button(
+                            onClick = {
+                                lifecycleScope.launch {
+                                    val file = fileManagerUtil.createFile("videos", "mp4")
+                                    val filePath = file.first
+                                    val fileName = file.second
+
+                                    if (filePath.isNotEmpty()) {
+                                        val videoIntent = CameraActivity.create(
+                                            this@MainActivity, filePath, fileName
+                                        )
+                                        resultLauncher.launch(videoIntent)
+                                    }
+                                }
+                            }) {
+                            Text(text = "Capture New Video")
+                        }
                     }
                 }
             }
@@ -85,7 +110,7 @@ class MainActivity : ComponentActivity() {
                     return@registerForActivityResult
                 }
 
-                val videoUri: Uri? = data.data
+                val videoUri: Uri? = data.data ?: Uri.parse(data.getStringExtra(CameraActivity.CAPTURED_VIDEO_URI))
                 videoUri?.let {
                     val videoPath = parsePath(videoUri)
                     startActivity(ExoPlayerActivity.create(this@MainActivity, uriPath = videoPath))
